@@ -1,0 +1,33 @@
+# simulacao
+sim/build/
+*.cf
+*.o
+*.ghw
+*.vcd
+trace_*.txt
+# python
+__pycache__/
+# ISE
+*.xise.bak
+_xmsgs/
+iseconfig/
+xst/
+isim/
+*.wdb
+*.bit
+*.bgn
+*.ncd
+*.ngd
+*.pcf
+*.syr
+*.twr
+# LaTeX
+relatorio/*.aux
+relatorio/*.log
+relatorio/*.out
+relatorio/*.toc
+relatorio/*.lof
+relatorio/*.lot
+relatorio/*.synctex.gz
+relatorio/*.fls
+relatorio/*.fdb_latexmk

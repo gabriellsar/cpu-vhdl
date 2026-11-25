@@ -1,0 +1,33 @@
+#-------------------------------------------------------------------------------
+# cpu_top.ucf - Spartan-3E Starter Kit (XC3S500E-4FG320)
+# Pinos conforme o UG230 (Spartan-3E Starter Kit Board User Guide).
+#-------------------------------------------------------------------------------
+
+# Clock 50 MHz
+NET "CLK_50MHZ" LOC = "C9" | IOSTANDARD = LVCMOS33;
+NET "CLK_50MHZ" PERIOD = 20.0ns HIGH 50%;
+
+# Chave de reset (SW0)
+NET "SW<0>" LOC = "L13" | IOSTANDARD = LVTTL | PULLUP;
+
+# LEDs (LD7 = CLOCK, LD6..LD1 = Z N OVF EQ GT SM, LD0 livre)
+NET "LED<7>" LOC = "F9"  | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<6>" LOC = "E9"  | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<5>" LOC = "D11" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<4>" LOC = "C11" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<3>" LOC = "F11" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<2>" LOC = "E11" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<1>" LOC = "E12" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+NET "LED<0>" LOC = "F12" | IOSTANDARD = LVTTL | SLEW = SLOW | DRIVE = 8;
+
+# LCD (interface de 4 bits nos pinos SF_D<11:8>, compartilhados com a StrataFlash)
+NET "LCD_E"    LOC = "M18" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "LCD_RS"   LOC = "L18" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "LCD_RW"   LOC = "L17" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "SF_D<8>"  LOC = "R15" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "SF_D<9>"  LOC = "R16" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "SF_D<10>" LOC = "P17" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+NET "SF_D<11>" LOC = "M15" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
+
+# Desabilita a StrataFlash (SF_CE0 = '1') para liberar o barramento do LCD
+NET "SF_CE0"   LOC = "D16" | IOSTANDARD = LVCMOS33 | DRIVE = 4 | SLEW = SLOW;
