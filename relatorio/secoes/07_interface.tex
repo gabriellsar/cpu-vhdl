@@ -1,0 +1,132 @@
+\section{Interface com o usuário}
+\label{sec:interface}
+
+\subsection{LEDs}
+
+Os oito LEDs da placa (LD7 a LD0, da esquerda para a direita) seguem a ordem
+pedida no enunciado (Tabela~\ref{tab:leds}). Os LEDs LD6 a LD1 são ligados
+diretamente aos flip-flops \sig{FLAGS} da UC: mostram as flags da última
+operação de ALU e permanecem assim até que outra instrução de ALU seja
+executada. Por isso, durante instruções de memória e saltos os LEDs não mudam.
+
+\begin{table}[H]
+\centering
+\caption{Mapeamento dos LEDs.}
+\label{tab:leds}
+\small
+\begin{tabular}{c l l c}
+\toprule
+LED & Sinal & Significado & Pino \\
+\midrule
+LD7 & \sig{CLK\_LED} & clock da CPU (um pulso por estado da UC) & F9 \\
+LD6 & \sig{FLAGS(5)} & ZERO     & E9 \\
+LD5 & \sig{FLAGS(4)} & NEGATIVE & D11 \\
+LD4 & \sig{FLAGS(3)} & OVERFLOW & C11 \\
+LD3 & \sig{FLAGS(2)} & EQUAL    & F11 \\
+LD2 & \sig{FLAGS(1)} & GREATER  & E11 \\
+LD1 & \sig{FLAGS(0)} & SMALLER  & E12 \\
+LD0 & \texttt{'0'}   & não utilizado & F12 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A ordem dos bits do vetor \sig{FLAGS} foi escolhida para coincidir com a ordem
+dos LEDs, de modo que a ligação no topo é uma única atribuição:
+\sig{LED(6 downto 1) <= flags}.
+
+\subsection{Display LCD}
+\label{sec:lcd}
+
+O display tem duas linhas de 16 caracteres:
+
+\begin{itemize}[nosep]
+  \item \textbf{Linha 1}: a instrução em execução, em assembly, por exemplo
+        \texttt{LDI Ra, 0x0A}, \texttt{ADD Rb, Ra}, \texttt{LDR Rc, [Rb]} ou
+        \texttt{HALT};
+  \item \textbf{Linha 2}: o conteúdo da posição 255 da memória em decimal, no
+        formato \texttt{MEM[255] = 028}. Escrever no display, portanto, é
+        executar \instr{st Rx, 0xFF}.
+\end{itemize}
+
+A interface com o LCD é dividida em dois módulos: \sig{lcd\_text}, que decide
+\emph{o que} mostrar, e \sig{lcd\_controller}, que cuida de \emph{como}
+enviar os caracteres ao display.
+
+\subsubsection{Geração do texto (\sig{lcd\_text})}
+
+Este módulo é combinacional. Ele recebe o byte da instrução, o segundo byte e
+\sig{POS\_255}, e produz as duas linhas como vetores de 128 bits (16
+caracteres ASCII). A instrução é decodificada pela mesma função \sig{decode}
+da UC, o que garante que o texto mostrado corresponde exatamente ao que a CPU
+executa --- inclusive \texttt{NOP} para códigos inválidos. Para cada
+instrução, a linha é montada concatenando trechos constantes com campos
+variáveis:
+
+\begin{lstlisting}[style=vhdl, caption={Montagem da linha 1 (trecho de \texttt{lcd\_text.vhd}).}]
+rx <= reg_name(IR(3 downto 2));          -- "Ra".."Rd"
+ry <= reg_name(IR(1 downto 0));
+hx <= s2v("0x") & hex2(OP);              -- "0x3F"
+...
+when I_ADD => LINE1 <= pad16(s2v("ADD ") & rx & s2v(", ") & ry);
+when I_LDI => LINE1 <= pad16(s2v("LDI ") & rx & s2v(", ") & hx);
+when I_LDR => LINE1 <= pad16(s2v("LDR ") & rx & s2v(", [") & ry & s2v("]"));
+...
+LINE2 <= pad16(s2v("MEM[255] = ") & dec3(MEM255));
+\end{lstlisting}
+
+As funções auxiliares ficam no pacote \sig{cpu\_pkg}: \sig{s2v} converte uma
+\emph{string} constante em ASCII; \sig{pad16} completa a linha com espaços;
+\sig{reg\_name} e \sig{hex2} geram o nome do registrador e o valor em
+hexadecimal; e \sig{dec3} converte o byte em três dígitos decimais pelo
+algoritmo \emph{double dabble} (deslocamentos com correção $+3$ nos dígitos
+maiores que 4), sem usar divisão.
+
+\paragraph{Por que o LCD tem registradores próprios.} O texto não é gerado
+diretamente do \sig{IR}: a UC tem dois registradores de exibição,
+\sig{DISP\_IR} e \sig{DISP\_OP}, atualizados juntos no estado DECODE. O motivo
+é que o segundo byte das instruções \instr{ldi}, \instr{st} e \instr{jmp} só é
+lido um estado depois do \sig{IR}. Se o LCD usasse o \sig{IR} diretamente, uma
+instrução como \texttt{LDI Ra, 0x0A} apareceria por meio segundo com o imediato
+da instrução anterior. Com os registradores de exibição, a linha 1 muda uma
+única vez por instrução, já completa, e fica estável do EXECUTE dessa instrução
+até o DECODE da seguinte --- ou seja, durante a execução e a escrita do
+resultado, quando os LEDs também já refletem a instrução.
+
+\subsubsection{Controlador do LCD (\sig{lcd\_controller})}
+
+O LCD da Spartan-3E (controlador compatível com HD44780) é usado no modo de 4
+bits: os dados vão pelos pinos \sig{SF\_D[11:8]}, que são compartilhados com a
+memória \emph{flash} StrataFlash da placa. Por isso o topo mantém
+\sig{SF\_CE0}~=~1, desabilitando a \emph{flash}. Como só há escrita,
+\sig{LCD\_RW}~=~0.
+
+O controlador é uma máquina de estados a \SI{50}{\mega\hertz} com um contador
+de espera, e segue as temporizações do manual da placa:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Inicialização}: espera de \SI{15}{\milli\second} após ligar;
+        envio dos nibbles \texttt{0x3}, \texttt{0x3}, \texttt{0x3} e
+        \texttt{0x2}, com esperas de \SI{4,1}{\milli\second},
+        \SI{100}{\micro\second}, \SI{40}{\micro\second} e
+        \SI{40}{\micro\second}.
+  \item \textbf{Configuração}: \texttt{0x28} (4 bits, 2 linhas),
+        \texttt{0x06} (incremento automático), \texttt{0x0C} (display ligado,
+        sem cursor) e \texttt{0x01} (limpa a tela, espera de
+        \SI{2}{\milli\second}).
+  \item \textbf{Laço de atualização}: comando \texttt{0x80} (início da linha
+        1), 16 caracteres, comando \texttt{0xC0} (início da linha 2), 16
+        caracteres, e repete indefinidamente.
+\end{enumerate}
+
+Cada byte é enviado em dois nibbles, primeiro o mais significativo. Para cada
+nibble, os dados e \sig{RS} são colocados com \SI{40}{\nano\second} de
+antecedência e \sig{LCD\_E} fica em 1 por 12 ciclos (\SI{240}{\nano\second});
+entre os nibbles espera-se \SI{1}{\micro\second} e, depois de cada byte,
+\SI{40}{\micro\second}. Um quadro completo (34 bytes) leva cerca de
+\SI{1,4}{\milli\second}, ou seja, o display é reescrito cerca de 700 vezes por
+segundo --- muito mais rápido que a troca de instruções.
+
+No início de cada quadro (comando \texttt{0x80}) o controlador copia as duas
+linhas para registradores internos e envia essa cópia. Assim, mesmo que o texto
+mude no meio de um quadro, o display nunca recebe metade de uma linha antiga e
+metade de uma nova.

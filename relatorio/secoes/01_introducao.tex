@@ -1,0 +1,42 @@
+\section{Introdução}
+\label{sec:intro}
+
+Este relatório descreve o projeto, a implementação e a verificação de um
+processador (CPU) de 8 bits descrito em VHDL e sintetizado em FPGA, desenvolvido
+como trabalho final da disciplina de Computação Digital. O objetivo é consolidar
+os conceitos da disciplina --- lógica combinacional e sequencial, máquinas de
+estados, memórias e interfaces de entrada/saída --- num sistema completo, capaz
+de executar um programa armazenado em memória.
+
+O processador implementado possui:
+
+\begin{itemize}[nosep]
+  \item quatro registradores de propósito geral (\sig{Ra}, \sig{Rb}, \sig{Rc},
+        \sig{Rd}) e os registradores especiais \sig{IR}, \sig{PC}, \sig{SP},
+        \sig{MBR} e \sig{MAR}, todos de 8 bits;
+  \item uma ALU assíncrona (puramente combinacional) com operações aritméticas,
+        lógicas e de deslocamento, que produz seis flags;
+  \item uma memória RAM estática síncrona de $256 \times 8$ bits, que guarda
+        programa e dados;
+  \item uma Unidade de Controle (UC) baseada em máquina de estados que executa
+        os ciclos \emph{fetch}, \emph{decode}, \emph{execute} e \emph{write};
+  \item interface com o usuário: os LEDs mostram o clock da CPU e as flags da
+        última operação da ALU, e o display LCD mostra a instrução em execução e
+        o conteúdo da posição 255 da memória, reservada para saída.
+\end{itemize}
+
+A placa utilizada é a Spartan-3E Starter Kit (FPGA Xilinx XC3S500E), com
+clock de \SI{50}{\mega\hertz}, oito LEDs, quatro chaves deslizantes e um
+display LCD de $2 \times 16$ caracteres. O projeto foi desenvolvido no Xilinx
+ISE.
+
+O restante do documento está organizado da seguinte forma: a
+Seção~\ref{sec:isa} apresenta a arquitetura do conjunto de instruções; as
+Seções~\ref{sec:visao} e~\ref{sec:datapath} mostram a organização do sistema e o
+caminho de dados; a Seção~\ref{sec:unidades} detalha cada unidade; a
+Seção~\ref{sec:fsm} descreve a máquina de estados da UC; a
+Seção~\ref{sec:interface} trata dos LEDs e do LCD; as
+Seções~\ref{sec:programas} a~\ref{sec:passo} apresentam os programas de teste, a
+verificação e a execução passo a passo; a Seção~\ref{sec:placa} trata da
+implementação na placa; e a Seção~\ref{sec:conclusao} conclui o trabalho. O
+código VHDL completo está no Apêndice~\ref{ap:codigo}.

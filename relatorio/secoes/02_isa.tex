@@ -1,0 +1,129 @@
+\section{Arquitetura do conjunto de instruções (ISA)}
+\label{sec:isa}
+
+\subsection{Registradores e palavra}
+
+A palavra da CPU tem sempre 8 bits: instruções, dados, endereços e todos os
+registradores --- inclusive \sig{PC} e \sig{SP} --- têm 8 bits. Com 8 linhas de
+endereço, a memória tem 256 posições. A Tabela~\ref{tab:regs} resume os
+registradores do processador.
+
+\begin{table}[H]
+\centering
+\caption{Registradores da CPU.}
+\label{tab:regs}
+\begin{tabularx}{\linewidth}{l l X}
+\toprule
+Registrador & Tipo & Função \\
+\midrule
+\sig{Ra}, \sig{Rb}, \sig{Rc}, \sig{Rd} & propósito geral & operandos e destino das instruções (códigos 00, 01, 10, 11) \\
+\sig{PC} & especial & endereço da instrução atual (\emph{program counter}) \\
+\sig{IR} & especial & byte da instrução em execução (\emph{instruction register}) \\
+\sig{SP} & especial & topo da pilha (\emph{stack pointer}), iniciado em 254 \\
+\sig{MAR} & especial & endereço enviado à RAM (\emph{memory address register}) \\
+\sig{MBR} & especial & dado lido/escrito na RAM e resultado intermediário (\emph{memory buffer register}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Formato das instruções}
+
+Cada instrução ocupa um byte. Os 4 bits mais significativos formam o
+\emph{opcode}; os bits [3:2] indicam o registrador \sig{Rx}; e os bits [1:0]
+indicam o registrador \sig{Ry} ou, nas instruções de um único operando, uma
+função que faz parte do opcode (Figura~\ref{fig:formato}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[cell/.style={draw, minimum height=0.8cm, font=\ttfamily\small}]
+  \node[cell, minimum width=4.8cm, fill=blue!8]  (op) {Opcode};
+  \node[cell, minimum width=2.4cm, fill=green!8, right=0pt of op] (rx) {Rx};
+  \node[cell, minimum width=2.4cm, fill=orange!10, right=0pt of rx] (ry) {Ry / função};
+  \node[above=1pt of op.north west, anchor=south west, font=\scriptsize] {7};
+  \node[above=1pt of op.north east, anchor=south east, font=\scriptsize] {4};
+  \node[above=1pt of rx.north west, anchor=south west, font=\scriptsize] {3};
+  \node[above=1pt of rx.north east, anchor=south east, font=\scriptsize] {2};
+  \node[above=1pt of ry.north west, anchor=south west, font=\scriptsize] {1};
+  \node[above=1pt of ry.north east, anchor=south east, font=\scriptsize] {0};
+\end{tikzpicture}
+\caption{Formato do byte de instrução.}
+\label{fig:formato}
+\end{figure}
+
+Por exemplo, \instr{add Rc, Rb} é codificada como \texttt{0000~10~01} = \texttt{0x09}
+e \instr{dec Rd} como \texttt{0010~11~01} = \texttt{0x2D}.
+
+As instruções \instr{ldi}, \instr{st} e \instr{jmp} ocupam dois bytes: o byte
+seguinte (em \sig{PC+1}) é um complemento da instrução, chamado aqui de
+\texttt{ADDR}. Em \instr{ldi Rx, ADDR} ele é o valor carregado; em
+\instr{st Rx, ADDR}, o endereço onde \sig{Rx} é gravado; e em \instr{jmp ADDR},
+o endereço de destino. Esse byte é dado, e nunca é executado como instrução.
+
+Não existe \emph{load} direto de memória; para ler um endereço fixo combina-se
+\instr{ldi} e \instr{ldr}. Nos saltos condicionais, o registrador \sig{Rx}
+contém o \emph{endereço de destino}, e a condição é lida da flag guardada pela
+última instrução de ALU.
+
+\subsection{Tabela de instruções}
+
+\begin{longtable}{l l l}
+\caption{Conjunto de instruções implementado.}\label{tab:isa}\\
+\toprule
+Assembly & Codificação & Operação \\
+\midrule\endfirsthead
+\toprule
+Assembly & Codificação & Operação \\
+\midrule\endhead
+\bottomrule\endfoot
+\multicolumn{3}{l}{\textit{Aritméticas}}\\
+\instr{add Rx, Ry} & \texttt{0000 Rx Ry} & $Rx \gets Rx + Ry$; $PC \gets PC+1$ \\
+\instr{sub Rx, Ry} & \texttt{0001 Rx Ry} & $Rx \gets Rx - Ry$; $PC \gets PC+1$ \\
+\instr{inc Rx}     & \texttt{0010 Rx 00} & $Rx \gets Rx + 1$; $PC \gets PC+1$ \\
+\instr{dec Rx}     & \texttt{0010 Rx 01} & $Rx \gets Rx - 1$; $PC \gets PC+1$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Lógicas e deslocamentos}}\\
+\instr{and Rx, Ry} & \texttt{0011 Rx Ry} & $Rx \gets Rx \land Ry$; $PC \gets PC+1$ \\
+\instr{or Rx, Ry}  & \texttt{0100 Rx Ry} & $Rx \gets Rx \lor Ry$; $PC \gets PC+1$ \\
+\instr{not Rx}     & \texttt{0101 Rx 00} & $Rx \gets \lnot Rx$; $PC \gets PC+1$ \\
+\instr{xor Rx, Ry} & \texttt{0110 Rx Ry} & $Rx \gets Rx \oplus Ry$; $PC \gets PC+1$ \\
+\instr{rol Rx}     & \texttt{0111 Rx 00} & $Rx \gets Rx[6..0]\,Rx[7]$; $PC \gets PC+1$ \\
+\instr{ror Rx}     & \texttt{0111 Rx 01} & $Rx \gets Rx[0]\,Rx[7..1]$; $PC \gets PC+1$ \\
+\instr{lsl Rx}     & \texttt{0111 Rx 10} & $Rx \gets Rx[6..0]\,0$; $PC \gets PC+1$ \\
+\instr{lsr Rx}     & \texttt{0111 Rx 11} & $Rx \gets 0\,Rx[7..1]$; $PC \gets PC+1$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Memória}}\\
+\instr{push Rx}      & \texttt{1000 Rx 00} & $MEM[SP] \gets Rx$; $SP \gets SP-1$; $PC \gets PC+1$ \\
+\instr{pop Rx}       & \texttt{1000 Rx 01} & $Rx \gets MEM[SP+1]$; $SP \gets SP+1$; $PC \gets PC+1$ \\
+\instr{st Rx, ADDR}  & \texttt{1000 Rx 10} & $MEM[MEM[PC+1]] \gets Rx$; $PC \gets PC+2$ \\
+\instr{ldi Rx, ADDR} & \texttt{1000 Rx 11} & $Rx \gets MEM[PC+1]$; $PC \gets PC+2$ \\
+\instr{ldr Rx, [Ry]} & \texttt{1001 Rx Ry} & $Rx \gets MEM[Ry]$; $PC \gets PC+1$ \\
+\instr{str Rx, [Ry]} & \texttt{1010 Rx Ry} & $MEM[Ry] \gets Rx$; $PC \gets PC+1$ \\
+\instr{mov Rx, Ry}   & \texttt{1011 Rx Ry} & $Rx \gets Ry$; $PC \gets PC+1$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Saltos}}\\
+\instr{jmp ADDR} & \texttt{1100 00 00} & $PC \gets MEM[PC+1]$ \\
+\instr{jmpr Rx}  & \texttt{1100 Rx 01} & $PC \gets Rx$ \\
+\instr{bz Rx}    & \texttt{1100 Rx 10} & se ZERO: $PC \gets Rx$, senão $PC \gets PC+1$ \\
+\instr{bnz Rx}   & \texttt{1100 Rx 11} & se não ZERO: $PC \gets Rx$ \\
+\instr{bcs Rx}   & \texttt{1101 Rx 00} & se OVERFLOW: $PC \gets Rx$ \\
+\instr{bcc Rx}   & \texttt{1101 Rx 01} & se não OVERFLOW: $PC \gets Rx$ \\
+\instr{beq Rx}   & \texttt{1101 Rx 10} & se EQUAL: $PC \gets Rx$ \\
+\instr{bneq Rx}  & \texttt{1101 Rx 11} & se não EQUAL: $PC \gets Rx$ \\
+\instr{bgt Rx}   & \texttt{1110 Rx 00} & se GREATER: $PC \gets Rx$ \\
+\instr{blt Rx}   & \texttt{1110 Rx 01} & se SMALLER: $PC \gets Rx$ \\
+\instr{bneg Rx}  & \texttt{1110 Rx 10} & se NEGATIVE: $PC \gets Rx$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Controle}}\\
+\instr{nop}  & \texttt{1111 00 00} & nenhuma operação; $PC \gets PC+1$ \\
+\instr{halt} & \texttt{1111 11 11} & fim do programa; $PC \gets PC$ \\
+\end{longtable}
+
+\paragraph{Opcodes não usados.} Qualquer código que não esteja na tabela ---
+por exemplo \texttt{0010~Rx~10}, \texttt{0101~Rx~01}, \texttt{1100~Rx~00} com
+$Rx \neq 00$, \texttt{1110~Rx~11} e \texttt{1111~xx~xx} diferente de
+\texttt{0000} e \texttt{1111} --- é tratado como \instr{nop}: nenhum registrador,
+flag ou posição de memória é alterado, e $PC \gets PC+1$. Na implementação, a
+função \sig{decode} do pacote \sig{cpu\_pkg} converte o byte do \sig{IR} num tipo
+enumerado (\sig{I\_ADD}, \sig{I\_SUB}, \ldots, \sig{I\_HALT}); qualquer código fora
+da tabela resulta em \sig{I\_NOP}, o que garante esse comportamento por
+construção.

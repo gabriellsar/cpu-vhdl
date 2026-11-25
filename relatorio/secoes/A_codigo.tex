@@ -1,0 +1,41 @@
+\section{Código VHDL}
+\label{ap:codigo}
+
+Este apêndice reproduz o código-fonte completo do projeto. Os arquivos estão
+organizados em \sig{src/} (síntese), \sig{constraints/} (pinagem) e
+\sig{sim/} (testbenches).
+
+\lstset{style=vhdl, basicstyle=\ttfamily\scriptsize}
+
+\subsection{\texttt{cpu\_pkg.vhd} --- pacote comum}
+\lstinputlisting{../src/cpu_pkg.vhd}
+
+\subsection{\texttt{alu.vhd} --- ALU}
+\lstinputlisting{../src/alu.vhd}
+
+\subsection{\texttt{cpu.vhd} --- Unidade de Controle e registradores}
+\lstinputlisting{../src/cpu.vhd}
+
+\subsection{\texttt{RAM.vhd} --- memória}
+\lstinputlisting{../src/RAM.vhd}
+
+\subsection{\texttt{clock\_enable.vhd} --- divisor de clock}
+\lstinputlisting{../src/clock_enable.vhd}
+
+\subsection{\texttt{lcd\_text.vhd} --- texto do LCD}
+\lstinputlisting{../src/lcd_text.vhd}
+
+\subsection{\texttt{lcd\_controller.vhd} --- controlador do LCD}
+\lstinputlisting{../src/lcd_controller.vhd}
+
+\subsection{\texttt{cpu\_top.vhd} --- topo}
+\lstinputlisting{../src/cpu_top.vhd}
+
+\subsection{\texttt{cpu\_top.ucf} --- pinagem}
+\lstinputlisting[language={}, morecomment={[l]\#}]{../constraints/cpu_top.ucf}
+
+\subsection{\texttt{tb\_cpu.vhd} --- testbench da CPU}
+\lstinputlisting{../sim/tb_cpu.vhd}
+
+\subsection{\texttt{tb\_top.vhd} --- testbench do topo}
+\lstinputlisting{../sim/tb_top.vhd}

@@ -1,0 +1,66 @@
+\section{Implementação na placa}
+\label{sec:placa}
+
+\subsection{Pinagem}
+
+A Tabela~\ref{tab:pinos} lista as restrições do arquivo
+\sig{constraints/cpu\_top.ucf}, conforme o manual da Spartan-3E Starter Kit.
+
+\begin{table}[H]
+\centering
+\caption{Pinagem utilizada (Spartan-3E Starter Kit).}
+\label{tab:pinos}
+\small
+\begin{tabularx}{\linewidth}{>{\raggedright}p{3.0cm} >{\raggedright}p{3.1cm} l >{\raggedright\arraybackslash}X}
+\toprule
+Sinal & Pino & Padrão de I/O & Função \\
+\midrule
+\sig{CLK\_50MHZ} & C9  & LVCMOS33 & clock de \SI{50}{\mega\hertz} \\
+\sig{SW<0>}      & L13 & LVTTL    & chave SW0: reset da CPU \\
+\sig{LED<7>} \ldots \sig{LED<0>} & F9, E9, D11, C11, F11, E11, E12, F12 & LVTTL & LEDs LD7 a LD0 \\
+\sig{LCD\_E}     & M18 & LVCMOS33 & \emph{enable} do LCD \\
+\sig{LCD\_RS}    & L18 & LVCMOS33 & comando (0) / dado (1) \\
+\sig{LCD\_RW}    & L17 & LVCMOS33 & sempre 0 (escrita) \\
+\sig{SF\_D<8>} \ldots \sig{SF\_D<11>} & R15, R16, P17, M15 & LVCMOS33 & dados do LCD (4 bits) \\
+\sig{SF\_CE0}    & D16 & LVCMOS33 & desabilita a StrataFlash (1) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Procedimento}
+
+\begin{enumerate}[nosep]
+  \item Criar o projeto no ISE para o dispositivo XC3S500E, encapsulamento
+        FG320, \emph{speed grade} $-4$, adicionando os arquivos de \sig{src/} e
+        o \sig{.ucf}, com \sig{cpu\_top} como topo.
+  \item Sintetizar, implementar e gerar o \emph{bitstream}; gravar a FPGA pelo
+        iMPACT via USB.
+  \item Com a chave SW0 em 1, a CPU fica parada no estado inicial e o LCD
+        mostra \texttt{NOP} e \texttt{MEM[255] = 000}. Ao levar SW0 para 0, o
+        programa começa a executar, uma instrução a cada \SI{2}{\second}.
+  \item Para trocar o programa, substitui-se o bloco de inicialização em
+        \sig{RAM.vhd} e repete-se a síntese. Para reiniciar o mesmo programa,
+        basta voltar SW0 a 1 e depois a 0 --- lembrando que, como a RAM não é
+        reiniciada pelo reset, dados que o programa tenha escrito na memória
+        permanecem até que a FPGA seja regravada.
+\end{enumerate}
+
+\subsection{Utilização de recursos}
+
+\pendente{Inserir aqui o resumo do relatório de síntese do ISE
+(\emph{Design Summary}): número de \emph{slices}, flip-flops, LUTs, block RAMs
+e a frequência máxima estimada.}
+
+\subsection{Registro da execução}
+
+\pendente{Inserir fotos da placa executando o Fibonacci (por exemplo, no
+início, no meio da sequência e no \texttt{HALT} com \texttt{MEM[255] = 233}) e o
+link do vídeo no YouTube (não listado).}
+
+% Exemplo de inclusao de foto:
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=0.7\linewidth]{fotos/fib_halt.jpg}
+%   \caption{Placa ao final do Fibonacci: LCD mostrando HALT e MEM[255] = 233.}
+% \end{figure}
+% Video: \url{https://youtu.be/...}

@@ -2,8 +2,8 @@
 ;
 ; A cada teste aprovado, o numero do teste vai para MEM[255] (1, 2, 3 ...).
 ; No final:  MEM[255] = 100 -> todos os testes passaram
-;            MEM[255] = 238 -> falhou (MEM[254-...] nao importa; veja o ultimo
-;                              numero de teste mostrado antes do 238)
+;            MEM[255] = 238 -> falhou (o ultimo numero mostrado antes do 238
+;                              indica o ultimo teste aprovado)
 ;
 ; Verificacao de valor:  ldi Rc, ESPERADO / and Rc, Rx / bneq -> fail
 ; (EQUAL = (Rc == Rx), calculado pela ALU)

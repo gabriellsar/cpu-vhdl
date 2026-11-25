@@ -1,0 +1,112 @@
+%===============================================================================
+% Relatorio - Trabalho Final de Computacao Digital (PUC-Rio)
+% CPU de 8 bits em VHDL para FPGA
+%
+% Compilar:  cd relatorio && latexmk -pdf main.tex
+%===============================================================================
+\documentclass[11pt,a4paper]{article}
+
+% ---- idioma e fontes ---------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---- pagina ------------------------------------------------------------------
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\onehalfspacing
+
+% ---- tabelas, figuras, listas ------------------------------------------------
+\usepackage{booktabs,longtable,tabularx,multirow,makecell,array}
+\usepackage{graphicx,float,caption,subcaption}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\usepackage{siunitx}
+\sisetup{output-decimal-marker={,}}
+
+% ---- diagramas ---------------------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,automata,fit,calc,shapes.geometric,
+                backgrounds,decorations.pathreplacing,babel}
+
+% ---- codigo ------------------------------------------------------------------
+\usepackage{listings}
+\definecolor{cmt}{RGB}{90,120,90}
+\definecolor{kw}{RGB}{0,60,140}
+\definecolor{str}{RGB}{150,60,30}
+\definecolor{bgcode}{RGB}{248,248,248}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{kw}\bfseries,
+  commentstyle=\color{cmt}\itshape,
+  stringstyle=\color{str},
+  backgroundcolor=\color{bgcode},
+  frame=single, rulecolor=\color{black!20},
+  numbers=left, numberstyle=\tiny\color{black!50}, numbersep=6pt,
+  breaklines=true, breakatwhitespace=true, columns=fullflexible, keepspaces=true,
+  showstringspaces=false, tabsize=4, xleftmargin=1.5em, framexleftmargin=1.5em,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {ã}{{\~a}}1 {õ}{{\~o}}1 {ç}{{\c c}}1 {ê}{{\^e}}1 {â}{{\^a}}1
+           {ô}{{\^o}}1 {à}{{\`a}}1 {Ã}{{\~A}}1 {É}{{\'E}}1 {Ç}{{\c C}}1
+}
+\lstdefinelanguage{asm8}{
+  morekeywords={add,sub,inc,dec,and,or,not,xor,rol,ror,lsl,lsr,push,pop,st,ldi,
+                ldr,str,mov,jmp,jmpr,bz,bnz,bcs,bcc,beq,bneq,bgt,blt,bneg,nop,halt},
+  morekeywords=[2]{Ra,Rb,Rc,Rd},
+  keywordstyle=[2]\color{str},
+  sensitive=false, morecomment=[l]{;}, morestring=[b]",
+}
+\renewcommand{\lstlistingname}{Listagem}
+\renewcommand{\lstlistlistingname}{Lista de Listagens}
+\lstdefinestyle{vhdl}{language=VHDL, morekeywords={rising_edge,falling_edge,
+  std_logic,std_logic_vector,unsigned,signed,natural,integer,boolean,string,
+  to_integer,to_unsigned,generate,others}}
+
+% ---- links ---------------------------------------------------------------
+\usepackage[hidelinks]{hyperref}
+\usepackage{bookmark}
+
+% ---- atalhos -----------------------------------------------------------------
+\newcommand{\sig}[1]{\texttt{#1}}            % nome de sinal / arquivo
+\newcommand{\instr}[1]{\texttt{#1}}          % instrucao
+\newcommand{\pendente}[1]{\fcolorbox{red!60}{red!5}{\parbox{0.95\linewidth}{\small\textbf{A FAZER:} #1}}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Computação Digital --- Trabalho Final}
+\fancyhead[R]{\small CPU de 8 bits em VHDL}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\begin{document}
+
+\input{secoes/00_capa}
+
+\pagenumbering{roman}
+\tableofcontents
+\listoffigures
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+\input{secoes/01_introducao}
+\input{secoes/02_isa}
+\input{secoes/03_visao_geral}
+\input{secoes/04_caminho_dados}
+\input{secoes/05_unidades}
+\input{secoes/06_fsm}
+\input{secoes/07_interface}
+\input{secoes/08_programas}
+\input{secoes/10_testes}
+\input{secoes/11_passo_a_passo}
+\input{secoes/12_placa}
+\input{secoes/13_conclusao}
+
+\clearpage
+\appendix
+\input{secoes/A_codigo}
+
+\end{document}

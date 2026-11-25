@@ -1,0 +1,185 @@
+\section{Máquina de estados da Unidade de Controle}
+\label{sec:fsm}
+
+A UC é uma máquina de Moore com quatro estados, percorridos sempre na mesma
+ordem por todas as instruções (Figura~\ref{fig:fsm}). O estado só muda nas
+bordas de subida em que \sig{CE}~=~1, e o reset leva a máquina a FETCH de
+qualquer estado.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  st/.style={state, thick, minimum size=2.3cm, align=center, font=\small\bfseries, fill=blue!6},
+  ->, >={Latex[length=2.5mm]}, thick, node distance=4.2cm]
+
+  \node[st, initial, initial text={\scriptsize reset}] (f) {FETCH};
+  \node[st, right=of f] (d) {DECODE};
+  \node[st, below=2.6cm of d] (e) {EXECUTE};
+  \node[st, below=2.6cm of f] (w) {WRITE};
+
+  \draw (f) -- node[above, font=\scriptsize] {CE} (d);
+  \draw (d) -- node[right, font=\scriptsize] {CE} (e);
+  \draw (e) -- node[below, font=\scriptsize] {CE} (w);
+  \draw (w) -- node[left, font=\scriptsize] {CE} (f);
+
+  \node[font=\scriptsize, align=left, anchor=south, text width=4.6cm] at ([yshift=2pt]f.north)
+       {IR $\gets$ DOUT (= MEM[PC])\\MAR $\gets$ PC+1};
+  \node[font=\scriptsize, align=left, anchor=south, text width=4.6cm] at ([yshift=2pt]d.north)
+       {decodifica IR; ALU\_A, ALU\_B, CMD\\MBR $\gets$ 2º byte (\instr{ldi}, \instr{jmp})\\MAR/MBR/WE para acesso à memória};
+  \node[font=\scriptsize, align=left, anchor=north, text width=4.6cm] at ([yshift=-2pt]e.south)
+       {MBR $\gets$ ALU\_R e FLAGS $\gets$ flags (ALU)\\MBR $\gets$ DOUT (\instr{ldr}, \instr{pop}); MBR $\gets$ Ry (\instr{mov})\\escrita na RAM; WE $\gets$ 0};
+  \node[font=\scriptsize, align=left, anchor=north, text width=4.6cm] at ([yshift=-2pt]w.south)
+       {Rx $\gets$ MBR; SP $\pm$ 1\\PC $\gets$ próximo PC\\MAR $\gets$ próximo PC};
+\end{tikzpicture}
+\caption{Máquina de estados da Unidade de Controle.}
+\label{fig:fsm}
+\end{figure}
+
+\subsection{Descrição dos estados}
+
+\paragraph{FETCH.} Como o \sig{MAR} já contém o \sig{PC} (carregado no WRITE
+anterior ou no reset), \sig{DOUT} já mostra $MEM[PC]$ e a instrução é copiada
+para o \sig{IR}. Ao mesmo tempo, $MAR \gets PC + 1$, antecipando a leitura do
+segundo byte. Para instruções de um byte essa leitura é simplesmente ignorada;
+fazê-la sempre simplifica a UC e mantém o número de estados constante.
+
+\paragraph{DECODE.} Com o \sig{IR} válido, a instrução é decodificada e
+\sig{DOUT} mostra $MEM[PC+1]$. Neste estado:
+\begin{itemize}[nosep]
+  \item instruções de ALU carregam \sig{ALU\_A}, \sig{ALU\_B} e \sig{CMD};
+  \item \instr{ldi} e \instr{jmp} copiam o segundo byte para \sig{MBR};
+  \item \instr{st} usa o segundo byte como endereço ($MAR \gets DOUT$),
+        $MBR \gets Rx$ e $WE \gets 1$;
+  \item \instr{str} e \instr{push} preparam endereço e dado e ligam \sig{WE};
+  \item \instr{ldr} e \instr{pop} colocam o endereço de leitura em \sig{MAR};
+  \item os registradores de exibição do LCD são atualizados com o \sig{IR} e o
+        segundo byte (Seção~\ref{sec:lcd}).
+\end{itemize}
+
+\paragraph{EXECUTE.} A ALU já calculou o resultado (ela é combinacional e suas
+entradas estão estáveis desde o fim do DECODE) e a RAM já respondeu à leitura
+pedida. Nas instruções de ALU, o resultado vai para \sig{MBR} e as flags para os
+flip-flops \sig{FLAGS}; em \instr{ldr} e \instr{pop}, o dado lido vai para
+\sig{MBR}; em \instr{mov}, \sig{Ry} vai para \sig{MBR}. As escritas na memória
+acontecem durante este estado, e \sig{WE} é desligado no fim dele.
+
+\paragraph{WRITE.} O resultado é escrito no registrador destino
+($Rx \gets MBR$), o \sig{SP} é atualizado (\instr{push}/\instr{pop}), e o
+próximo \sig{PC} é calculado e escrito tanto em \sig{PC} quanto em \sig{MAR},
+deixando a memória pronta para o próximo FETCH. As condições dos saltos são
+avaliadas aqui, a partir das flags salvas --- que, nos saltos, nunca mudam
+durante a própria instrução.
+
+\subsection{Tempo de execução}
+
+Com quatro estados de \SI{0,5}{\second}, toda instrução leva exatamente
+\SI{2}{\second}, inclusive as de dois bytes, os saltos e \instr{halt}. O tempo
+constante facilita o acompanhamento visual e a montagem da tabela passo a
+passo. No \instr{halt}, o próximo PC é o próprio PC: a UC continua percorrendo
+os quatro estados, mas sempre reexecuta \instr{halt}, sem alterar nada, até que
+o reset seja acionado.
+
+\subsection{Micro-operações por instrução}
+
+A Tabela~\ref{tab:microops} resume o que cada classe de instrução faz em cada
+estado. O FETCH é igual para todas ($IR \gets DOUT$, $MAR \gets PC+1$) e foi
+omitido.
+
+\begin{table}[H]
+\centering
+\caption{Micro-operações por instrução nos estados DECODE, EXECUTE e WRITE.}
+\label{tab:microops}
+\footnotesize
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{>{\raggedright}p{2.3cm} >{\raggedright}X >{\raggedright}X >{\raggedright\arraybackslash}X}
+\toprule
+Instrução & DECODE & EXECUTE & WRITE \\
+\midrule
+\instr{add}, \instr{sub}, \instr{and}, \instr{or}, \instr{xor}
+  & $A \gets Rx$; $B \gets Ry$; CMD
+  & $MBR \gets ALU\_R$; $FLAGS \gets$ flags
+  & $Rx \gets MBR$; $PC \gets PC+1$ \\
+\instr{inc}, \instr{dec}
+  & $A \gets Rx$; $B \gets 1$; CMD
+  & $MBR \gets ALU\_R$; $FLAGS \gets$ flags
+  & $Rx \gets MBR$; $PC \gets PC+1$ \\
+\instr{not}, \instr{rol}, \instr{ror}, \instr{lsl}, \instr{lsr}
+  & $A \gets Rx$; $B \gets 0$; CMD
+  & $MBR \gets ALU\_R$; $FLAGS \gets$ flags
+  & $Rx \gets MBR$; $PC \gets PC+1$ \\
+\midrule
+\instr{ldi Rx, v}
+  & $MBR \gets DOUT$ ($=v$)
+  & ---
+  & $Rx \gets MBR$; $PC \gets PC+2$ \\
+\instr{st Rx, a}
+  & $MAR \gets DOUT$ ($=a$); $MBR \gets Rx$; $WE \gets 1$
+  & escrita; $WE \gets 0$
+  & $PC \gets PC+2$ \\
+\instr{ldr Rx, [Ry]}
+  & $MAR \gets Ry$
+  & $MBR \gets DOUT$
+  & $Rx \gets MBR$; $PC \gets PC+1$ \\
+\instr{str Rx, [Ry]}
+  & $MAR \gets Ry$; $MBR \gets Rx$; $WE \gets 1$
+  & escrita; $WE \gets 0$
+  & $PC \gets PC+1$ \\
+\instr{push Rx}
+  & $MAR \gets SP$; $MBR \gets Rx$; $WE \gets 1$
+  & escrita; $WE \gets 0$
+  & $SP \gets SP-1$; $PC \gets PC+1$ \\
+\instr{pop Rx}
+  & $MAR \gets SP+1$
+  & $MBR \gets DOUT$
+  & $Rx \gets MBR$; $SP \gets SP+1$; $PC \gets PC+1$ \\
+\instr{mov Rx, Ry}
+  & ---
+  & $MBR \gets Ry$
+  & $Rx \gets MBR$; $PC \gets PC+1$ \\
+\midrule
+\instr{jmp a}
+  & $MBR \gets DOUT$ ($=a$)
+  & ---
+  & $PC \gets MBR$ \\
+\instr{jmpr Rx}
+  & ---
+  & ---
+  & $PC \gets Rx$ \\
+\instr{bz}, \instr{bnz}, \ldots, \instr{bneg}
+  & ---
+  & ---
+  & se condição: $PC \gets Rx$, senão $PC \gets PC+1$ \\
+\midrule
+\instr{nop} (e inválidas)
+  & ---
+  & ---
+  & $PC \gets PC+1$ \\
+\instr{halt}
+  & ---
+  & ---
+  & $PC \gets PC$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Em todas as instruções, o WRITE também faz $MAR \gets$ próximo PC, e o DECODE
+atualiza os registradores de exibição do LCD. A Tabela~\ref{tab:cond} lista as
+condições dos saltos.
+
+\begin{table}[H]
+\centering
+\caption{Condições dos saltos (flags guardadas na UC pela última instrução de ALU).}
+\label{tab:cond}
+\small
+\begin{tabular}{l l @{\hspace{1.5cm}} l l}
+\toprule
+Instrução & Salta se & Instrução & Salta se \\
+\midrule
+\instr{bz}   & ZERO = 1      & \instr{bneq} & EQUAL = 0 \\
+\instr{bnz}  & ZERO = 0      & \instr{bgt}  & GREATER = 1 \\
+\instr{bcs}  & OVERFLOW = 1  & \instr{blt}  & SMALLER = 1 \\
+\instr{bcc}  & OVERFLOW = 0  & \instr{bneg} & NEGATIVE = 1 \\
+\instr{beq}  & EQUAL = 1     & \instr{jmpr} & sempre \\
+\bottomrule
+\end{tabular}
+\end{table}

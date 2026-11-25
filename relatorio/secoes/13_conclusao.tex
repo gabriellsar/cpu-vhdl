@@ -1,0 +1,44 @@
+\section{Conclusão}
+\label{sec:conclusao}
+
+Foi projetada e implementada em VHDL uma CPU de 8 bits que executa todo o
+conjunto de instruções especificado, com memória RAM síncrona, ALU assíncrona,
+Unidade de Controle baseada em máquina de estados e interface com LEDs e LCD.
+Em simulação, os testes autoverificáveis cobriram todas as instruções, todas as
+flags e os saltos nos dois sentidos, e terminaram sem falhas; o programa de
+demonstração (Fibonacci) produziu a sequência esperada até 233.
+
+Algumas decisões de projeto simplificaram bastante a implementação:
+
+\begin{itemize}[nosep]
+  \item \textbf{Número fixo de estados.} Todas as instruções passam pelos
+        mesmos quatro estados. Isso custa alguns estados ociosos em instruções
+        simples, mas deixa a UC regular e faz toda instrução durar exatamente
+        \SI{2}{\second}, o que facilita a visualização e a montagem da tabela
+        passo a passo.
+  \item \textbf{RAM acessada só por \sig{MAR} e \sig{MBR}.} Com endereço e dado
+        sempre vindos de registradores, a latência da RAM síncrona virou uma
+        regra simples --- endereço num estado, dado no seguinte --- válida com
+        qualquer divisor de clock.
+  \item \textbf{Busca antecipada do segundo byte.} Fazer $MAR \gets PC+1$ em
+        todo FETCH elimina um estado extra nas instruções de dois bytes.
+  \item \textbf{Conta em 9 bits na ALU.} O bit 8 fornece diretamente o
+        OVERFLOW em todas as operações, inclusive nos deslocamentos.
+  \item \textbf{\emph{Clock enable} em vez de clock dividido.} Mantém um único
+        domínio de clock e evita clocks gerados por lógica.
+  \item \textbf{Decodificação centralizada.} Uma única função transforma o
+        byte da instrução num tipo enumerado, usado tanto pela UC quanto pelo
+        texto do LCD; códigos inválidos viram \instr{nop} nos dois lugares, por
+        construção.
+\end{itemize}
+
+As principais dificuldades foram a temporização da RAM síncrona, resolvida
+pela organização dos estados descrita acima, e a exibição coerente no LCD: o
+texto de instruções de dois bytes precisou de registradores próprios para não
+aparecer com o imediato da instrução anterior, e o controlador passou a copiar
+as linhas no início de cada quadro para nunca mostrar textos misturados.
+
+Como possíveis extensões, a arquitetura comporta instruções de chamada e
+retorno de sub-rotina (usando a pilha já existente), entrada de dados pelas
+chaves da placa mapeada em outra posição de memória, e a execução passo a passo
+por botão, como alternativa ao divisor de clock.

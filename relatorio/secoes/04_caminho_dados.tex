@@ -1,0 +1,168 @@
+\section{Caminho de dados}
+\label{sec:datapath}
+
+A Figura~\ref{fig:datapath} mostra o caminho de dados da CPU. Três escolhas de
+projeto organizam o desenho:
+
+\begin{enumerate}[nosep]
+  \item \textbf{A RAM só é acessada por \sig{MAR} e \sig{MBR}.} O endereço da
+        memória é sempre o conteúdo de \sig{MAR}, e o dado de escrita é sempre o
+        conteúdo de \sig{MBR}. Isso deixa os sinais da RAM estáveis durante um
+        estado inteiro da UC, o que é necessário para a RAM síncrona.
+  \item \textbf{A ALU tem entradas registradas.} Os operandos são copiados para
+        \sig{ALU\_A} e \sig{ALU\_B} (com o comando \sig{CMD}) no estado de
+        decodificação; no estado seguinte a ALU, que é combinacional, já
+        apresenta resultado e flags estáveis, e a UC só precisa guardá-los.
+  \item \textbf{\sig{MBR} centraliza os resultados.} Resultado da ALU, dado lido
+        da memória, imediato de \instr{ldi} e valor de \instr{mov} passam todos
+        por \sig{MBR} antes de ir para o registrador destino. Assim, a escrita
+        no banco de registradores tem uma única origem e acontece sempre no
+        mesmo estado (WRITE).
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\newcommand{\muxat}[4]{% nome, x, y, meia-altura
+  \draw[thick, fill=gray!12] (#2-0.22,#3-#4) -- (#2+0.22,#3-#4+0.2) -- (#2+0.22,#3+#4-0.2) -- (#2-0.22,#3+#4) -- cycle;
+  \coordinate (#1-out) at (#2+0.22,#3);
+  \coordinate (#1-in) at (#2-0.22,#3);}
+\newcommand{\stub}[3]{% x_entrada, y, texto
+  \draw[-{Latex[length=1.6mm]}, thick] (#1-0.55,#2) node[left, font=\tiny\ttfamily, inner sep=1pt] {#3} -- (#1,#2);}
+\begin{tikzpicture}[scale=0.95, transform shape,
+  reg/.style={draw, thick, fill=blue!6, minimum width=1.4cm, minimum height=0.7cm, font=\small\ttfamily},
+  bus/.style={-{Latex[length=1.8mm]}, thick},
+  lbl/.style={font=\tiny\ttfamily, fill=white, inner sep=0.8pt}]
+
+  % ---------------- linha de cima: PC, SP, IR, UC ----------------
+  \muxat{mpc}{1.2}{4.0}{0.75}
+  \stub{0.98}{4.45}{PC+1}
+  \stub{0.98}{4.15}{PC+2}
+  \stub{0.98}{3.85}{MBR}
+  \stub{0.98}{3.55}{REG(rx)}
+  \node[reg] (pc) at (2.7,4.0) {PC};
+  \draw[bus] (mpc-out) -- (pc.west);
+  \node[lbl, right=2pt of pc.east, align=left] {$\to$ MAR\\$\to$ PC+1, PC+2};
+
+  \node[reg] (sp) at (7.0,4.0) {SP};
+  \stub{6.3}{4.0}{SP$\pm$1}
+  \node[lbl, below=1pt of sp] {$\to$ MAR (SP, SP+1)};
+
+  \node[reg] (ir) at (10.2,4.0) {IR};
+  \node[draw, thick, fill=yellow!12, rounded corners=2pt, minimum width=2.0cm, minimum height=0.7cm,
+        font=\small, align=center] (uc) at (13.0,4.0) {UC\\[-2pt]\scriptsize decode + FSM};
+  \draw[bus] (ir.east) -- (uc.west);
+
+  % ---------------- banco de registradores ----------------
+  \node[draw, thick, fill=blue!6, minimum width=1.4cm, minimum height=3.0cm, align=center, font=\small\ttfamily]
+       (rf) at (0.8,0.6) {Ra\\[2pt]Rb\\[2pt]Rc\\[2pt]Rd};
+  \node[font=\scriptsize, above=0pt of rf] {registradores};
+
+  % ---------------- ALU ----------------
+  \node[reg] (aa) at (3.4,1.4) {ALU\_A};
+  \muxat{mb}{2.45}{-0.2}{0.5}
+  \node[reg] (ab) at (3.4,-0.2) {ALU\_B};
+  \draw[bus] ([yshift=0.8cm]rf.east) -- node[lbl, above] {REG(rx)} (aa.west);
+  \draw[bus] ([yshift=-0.55cm]rf.east) -- node[lbl, above, pos=0.4] {REG(ry)} ([yshift=0.25cm]mb-in);
+  \draw[-{Latex[length=1.6mm]}, thick] (2.45,-1.35) node[below, font=\tiny\ttfamily, inner sep=1pt] {1, 0} -- (2.45,-0.6);
+  \draw[bus] (mb-out) -- (ab.west);
+
+  \draw[thick, fill=orange!15] (5.0,2.0) -- (6.4,1.25) -- (6.4,-0.05) -- (5.0,-0.8) -- (5.0,0.25) -- (5.3,0.6) -- (5.0,0.95) -- cycle;
+  \node[font=\small\bfseries] at (5.85,0.6) {ALU};
+  \node[font=\tiny\ttfamily, anchor=north] at (5.7,-0.45) {CMD};
+  \draw[bus] (aa.east) -- (5.0,1.4);
+  \draw[bus] (ab.east) -- (5.0,-0.2);
+
+  \node[reg, fill=red!8] (fl) at (5.7,-2.0) {FLAGS};
+  \draw[bus] (5.7,-0.4) -- (fl.north);
+  \draw[bus] (fl.west) -- ++(-0.6,0) node[left, lbl] {LEDs, UC (saltos)};
+
+  % ---------------- MBR ----------------
+  \muxat{mmbr}{8.7}{1.8}{0.85}
+  \draw[bus] (6.4,0.6) -- (7.6,0.6) |- node[lbl, pos=0.75, above] {ALU\_R} (8.48,1.15);
+  \stub{8.48}{2.45}{DOUT}
+  \stub{8.48}{2.0}{REG(rx)}
+  \stub{8.48}{1.6}{REG(ry)}
+  \node[reg] (mbr) at (10.2,1.8) {MBR};
+  \draw[bus] (mmbr-out) -- (mbr.west);
+
+  % ---------------- MAR ----------------
+  \muxat{mmar}{8.7}{-1.3}{1.0}
+  \stub{8.48}{-0.6}{PC+1, próx. PC}
+  \stub{8.48}{-1.05}{DOUT}
+  \stub{8.48}{-1.5}{REG(ry)}
+  \stub{8.48}{-1.95}{SP, SP+1}
+  \node[reg] (mar) at (10.2,-1.3) {MAR};
+  \draw[bus] (mmar-out) -- (mar.west);
+
+  % ---------------- RAM ----------------
+  \node[draw, thick, fill=green!8, minimum width=1.9cm, minimum height=3.6cm, align=center]
+       (ram) at (13.0,0.4) {\textbf{RAM}\\\scriptsize $256\times8$\\\scriptsize síncrona};
+  \draw[bus] (mbr.east) -- node[lbl, above] {DIN} (mbr.east -| ram.west);
+  \draw[bus] (mar.east) -- node[lbl, above] {ADDR} (mar.east -| ram.west);
+  \draw[bus] (14.5,-0.4) node[right, lbl] {WE} -- (ram.east |- 0,-0.4);
+
+  % DOUT -> IR (e para os muxes de MBR e MAR, indicados como entradas rotuladas)
+  \draw[bus] (ram.east |- 0,1.6) -- (14.5,1.6) node[right, lbl, align=left] {DOUT\\$\to$ MBR, MAR} -- (14.5,3.1) -- (10.2,3.1) -- (ir.south);
+  \node[lbl] at (12.0,3.1) {DOUT};
+
+  % write-back MBR -> registradores
+  \draw[bus] (mbr.south) -- (10.2,0.9) -- (11.3,0.9) -- (11.3,-2.9) -- (0.8,-2.9) node[lbl, pos=0.5, above] {MBR $\to$ Rx (estado WRITE)} -- (rf.south);
+\end{tikzpicture}
+\caption{Caminho de dados da CPU (os sinais de controle gerados pela UC foram
+omitidos para clareza; os multiplexadores são selecionados pela instrução
+decodificada e pelo estado).}
+\label{fig:datapath}
+\end{figure}
+
+\subsection{Transferências entre registradores}
+
+A Tabela~\ref{tab:transf} lista, para cada registrador, todas as fontes
+possíveis --- ou seja, as entradas dos multiplexadores da
+Figura~\ref{fig:datapath} --- e em que estado da UC cada transferência ocorre.
+
+\begin{table}[H]
+\centering
+\caption{Fontes de cada registrador e estado em que são carregadas.}
+\label{tab:transf}
+\small
+\begin{tabularx}{\linewidth}{l l l X}
+\toprule
+Destino & Fonte & Estado & Quando \\
+\midrule
+\sig{IR}   & \sig{DOUT}           & FETCH   & toda instrução \\
+\midrule
+\multirow{6}{*}{\sig{MAR}}
+           & \sig{PC+1}           & FETCH   & toda instrução (busca do 2º byte) \\
+           & \sig{DOUT}           & DECODE  & \instr{st} (endereço vem do 2º byte) \\
+           & \sig{REG(ry)}        & DECODE  & \instr{ldr}, \instr{str} \\
+           & \sig{SP}             & DECODE  & \instr{push} \\
+           & \sig{SP+1}           & DECODE  & \instr{pop} \\
+           & próximo \sig{PC}     & WRITE   & toda instrução (prepara o FETCH) \\
+\midrule
+\multirow{5}{*}{\sig{MBR}}
+           & \sig{DOUT}           & DECODE  & \instr{ldi}, \instr{jmp} (2º byte) \\
+           & \sig{REG(rx)}        & DECODE  & \instr{st}, \instr{str}, \instr{push} (dado a escrever) \\
+           & \sig{ALU\_R}         & EXECUTE & instruções de ALU \\
+           & \sig{DOUT}           & EXECUTE & \instr{ldr}, \instr{pop} (dado lido) \\
+           & \sig{REG(ry)}        & EXECUTE & \instr{mov} \\
+\midrule
+\sig{ALU\_A}, \sig{ALU\_B}, \sig{CMD} & \sig{REG(rx)}, \sig{REG(ry)}/1/0 & DECODE & instruções de ALU (zero nas demais) \\
+\sig{FLAGS} & flags da ALU         & EXECUTE & instruções de ALU \\
+\sig{REG(rx)} & \sig{MBR}          & WRITE   & ALU, \instr{ldi}, \instr{ldr}, \instr{pop}, \instr{mov} \\
+\midrule
+\multirow{5}{*}{\sig{PC}}
+           & \sig{PC+1}           & WRITE   & instruções de 1 byte, saltos não tomados \\
+           & \sig{PC+2}           & WRITE   & \instr{ldi}, \instr{st} \\
+           & \sig{MBR}            & WRITE   & \instr{jmp} \\
+           & \sig{REG(rx)}        & WRITE   & \instr{jmpr}, saltos condicionais tomados \\
+           & \sig{PC}             & WRITE   & \instr{halt} \\
+\midrule
+\sig{SP}   & \sig{SP-1} / \sig{SP+1} & WRITE & \instr{push} / \instr{pop} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Os únicos somadores fora da ALU são os incrementos de \sig{PC} (\sig{PC+1},
+\sig{PC+2}) e de \sig{SP} (\sig{SP+1}, \sig{SP-1}), exatamente as exceções
+permitidas pelo enunciado. Todas as operações das instruções --- inclusive
+\instr{inc} e \instr{dec} --- são feitas pela ALU.

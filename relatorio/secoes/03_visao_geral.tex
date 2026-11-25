@@ -1,0 +1,85 @@
+\section{Visão geral do sistema}
+\label{sec:visao}
+
+O projeto é estruturado hierarquicamente. A entidade de topo, \sig{cpu\_top},
+apenas instancia e interliga cinco componentes, cada um num arquivo próprio
+(Figura~\ref{fig:blocos}):
+
+\begin{itemize}[nosep]
+  \item \sig{clock\_enable}: divisor que gera um pulso de habilitação (\sig{CE})
+        a cada \SI{0,5}{\second}, cadenciando a CPU;
+  \item \sig{cpu}: a Unidade de Controle, os registradores e a ALU (instanciada
+        dentro dela);
+  \item \sig{RAM\_8x256}: a memória síncrona com o programa;
+  \item \sig{lcd\_text}: lógica combinacional que monta o texto das duas linhas
+        do display;
+  \item \sig{lcd\_controller}: driver que envia esse texto ao LCD pelo
+        barramento de 4 bits.
+\end{itemize}
+
+Um pacote, \sig{cpu\_pkg}, reúne os tipos, as constantes de comando da ALU, a
+função de decodificação das instruções e as funções auxiliares de texto, e é
+usado por todos os módulos.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.84, transform shape,
+  blk/.style={draw, thick, rounded corners=2pt, align=center, minimum height=1.1cm,
+              minimum width=2.6cm, fill=white, font=\small},
+  io/.style={font=\scriptsize\ttfamily},
+  bus/.style={-{Latex[length=2mm]}, thick},
+  lbl/.style={font=\scriptsize\ttfamily, fill=white, inner sep=1pt}]
+
+  \node[blk, fill=blue!6, minimum height=3.2cm, minimum width=3.6cm] (cpu) at (0,0)
+       {\textbf{cpu}\\[2pt]\scriptsize UC (FSM)\\\scriptsize registradores\\\scriptsize ALU};
+  \node[blk, fill=gray!10] (ce) at (0,3.0) {\textbf{clock\_enable}\\\scriptsize TICKS = 25\,000\,000};
+  \node[blk, fill=green!6, minimum height=3.2cm] (ram) at (5.6,0) {\textbf{RAM\_8x256}\\\scriptsize síncrona\\\scriptsize $256\times8$};
+  \node[blk, fill=orange!8] (txt) at (5.6,-3.5) {\textbf{lcd\_text}};
+  \node[blk, fill=orange!8] (lcd) at (10.2,-3.5) {\textbf{lcd\_controller}};
+  \node[blk, minimum width=1.6cm] (disp) at (10.2,-1.0) {LCD\\$2\times16$};
+  \node[blk, minimum width=1.6cm] (leds) at (-4.6,-3.5) {LEDs\\LD7--LD0};
+  \node[blk, minimum width=1.6cm] (sw) at (-4.6,0) {SW0\\(reset)};
+  \node[io] (clk) at (-4.6,3.35) {CLK\_50MHZ};
+
+  \draw[bus] (clk.east) -- (clk.east -| ce.west);
+  \draw[bus] (ce) -- node[lbl, right] {CE} (cpu);
+  \draw[bus] (sw) -- node[lbl, above] {RESET} (cpu);
+
+  \draw[bus] ([yshift=0.9cm]cpu.east) -- node[lbl, above] {ADDR (MAR)} ([yshift=0.9cm]ram.west);
+  \draw[bus] ([yshift=0.3cm]cpu.east) -- node[lbl, above] {DIN (MBR)} ([yshift=0.3cm]ram.west);
+  \draw[bus] ([yshift=-0.3cm]cpu.east) -- node[lbl, above] {WE} ([yshift=-0.3cm]ram.west);
+  \draw[bus] ([yshift=-0.9cm]ram.west) -- node[lbl, above] {DOUT} ([yshift=-0.9cm]cpu.east);
+
+  \draw[bus] (ram.south) -- node[lbl, right] {POS\_255} (txt.north);
+  \draw[bus] (cpu.south) |- node[lbl, pos=0.75, above] {DISP\_IR, DISP\_OP} (txt.west);
+  \draw[bus] (txt) -- node[lbl, above] {LINE1, LINE2} (lcd);
+  \draw[bus] (lcd) -- node[lbl, right, align=left] {E, RS, RW\\SF\_D[11:8]} (disp);
+  \draw[bus] ([xshift=-0.8cm]cpu.south) |- node[lbl, pos=0.75, above] {FLAGS} (leds.east);
+  \draw[bus] ([yshift=-0.3cm]ce.west) -- node[lbl, pos=0.35, below] {CLK\_LED} ++(-5.4,0) |- (leds.west);
+\end{tikzpicture}
+\caption{Diagrama de blocos do topo (\sig{cpu\_top}).}
+\label{fig:blocos}
+\end{figure}
+
+\subsection{Domínio de clock único}
+
+Todos os módulos síncronos usam o mesmo clock de \SI{50}{\mega\hertz} da placa.
+A CPU não recebe um clock mais lento: ela recebe o sinal \sig{CE} e só avança de
+estado nas bordas de subida em que \sig{CE}~=~1. Assim:
+
+\begin{itemize}[nosep]
+  \item a RAM opera a \SI{50}{\mega\hertz} e responde muito antes do próximo
+        estado da CPU, de modo que sua latência fica naturalmente absorvida
+        (Seção~\ref{sec:ram});
+  \item o LCD também roda a \SI{50}{\mega\hertz}, como pede o enunciado;
+  \item não há clocks derivados de lógica, o que evita problemas de
+        \emph{skew} e de roteamento de clock na FPGA.
+\end{itemize}
+
+\subsection{Reset}
+
+O reset vem da chave deslizante SW0 (e não de um botão), passando por dois
+flip-flops de sincronização antes de chegar à CPU e ao divisor. Com a chave em
+1, a CPU permanece no estado inicial: $PC = 0$, $SP = 254$, flags em zero,
+registradores zerados e a UC no estado de \emph{fetch}. Ao levar a chave para 0,
+o programa começa a ser executado a partir do endereço 0.

@@ -1,0 +1,27 @@
+\section{Execução passo a passo}
+\label{sec:passo}
+
+A Tabela~\ref{tab:passo-fib} mostra a execução completa do Fibonacci, no
+formato pedido para a apresentação: para cada instrução, o PC, o texto da
+linha 1 do LCD, as seis flags (LEDs LD6 a LD1) e $MEM[255]$ (linha 2 do LCD).
+Para facilitar o acompanhamento, foram acrescentados os quatro registradores.
+Os valores são os vistos ao final de cada instrução, isto é, após o estado
+WRITE; os PCs e registradores estão em decimal.
+
+Alguns pontos para observar na tabela:
+\begin{itemize}[nosep]
+  \item os passos 1 a 3 inicializam \sig{Ra} = 0 e \sig{Rb} = 1 e mostram o
+        primeiro termo; a partir do passo 4, cada volta do laço ocupa 7
+        instruções (PC 6 a 14);
+  \item as flags só mudam nos passos de \instr{ADD}; nas demais instruções
+        elas são mantidas, o que é visível nas colunas Z a SM;
+  \item no passo 13 a flag EQUAL acende, pois a soma foi $1 + 1$ ($Rb = Ra$);
+  \item no passo 90, $233 + 144 = 377$ gera OVERFLOW; no passo 93, \instr{BCS}
+        salta para o endereço 16 e o passo 94 executa \instr{HALT}.
+\end{itemize}
+
+{\footnotesize
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{0.95}
+\input{tabelas/passo_fibonacci}
+}

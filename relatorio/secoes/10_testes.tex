@@ -1,0 +1,117 @@
+\section{Testes e verificação}
+\label{sec:testes}
+
+O projeto foi verificado em simulação antes de ir para a placa, com dois
+testbenches, \sig{tb\_cpu} e \sig{tb\_top} (pasta \sig{sim/}). As simulações
+foram feitas no GHDL; os testbenches usam apenas VHDL padrão e também rodam no
+ISim do ISE.
+
+\subsection{Testbench da CPU (\sig{tb\_cpu})}
+
+O \sig{tb\_cpu} instancia a CPU, a RAM, o divisor e o gerador de texto do LCD,
+sem o controlador físico do display. Ele:
+
+\begin{enumerate}[nosep]
+  \item mantém o reset ativo por 10 ciclos e confere, com \sig{assert}, o
+        estado inicial: $PC = 0$, $SP = 254$ e flags em zero;
+  \item libera o reset e, a cada instrução concluída (borda que encerra o
+        estado WRITE), escreve uma linha num arquivo de saída com o passo, o PC
+        da instrução, o texto da linha 1 do LCD, as seis flags, $MEM[255]$, os
+        quatro registradores, o $SP$ e o próximo PC;
+  \item encerra a simulação no primeiro \instr{halt}, informando o número de
+        instruções executadas e o conteúdo final do LCD.
+\end{enumerate}
+
+Para acompanhar sinais internos sem expô-los no topo, a entidade \sig{cpu}
+possui portas de depuração (\sig{DBG\_PC}, \sig{DBG\_SP}, \sig{DBG\_RA} \ldots
+\sig{DBG\_RD} e \sig{DBG\_WRITE}), que ficam desconectadas (\sig{open}) no topo
+e são removidas pela síntese. A Listagem~\ref{lst:tbout} mostra o início da
+saída para o Fibonacci; essa saída é a base da tabela passo a passo da
+Seção~\ref{sec:passo}.
+
+\lstinputlisting[numbers=none, caption={Início da saída do \texttt{tb\_cpu} para o Fibonacci. Colunas: passo, PC, LCD, flags ZNOEGS, posição 255 (decimal), Ra, Rb, Rc, Rd, SP e próximo PC (hexadecimal).}, label={lst:tbout}]{dados/tb_cpu_fibonacci_inicio.txt}
+
+\subsection{Resultados}
+
+A Tabela~\ref{tab:resumo} resume a execução dos três programas. Os dois
+programas de teste terminaram com $MEM[255] = 100$, ou seja, todas as
+verificações passaram, e o Fibonacci terminou mostrando 233, o último termo que
+cabe em 8 bits. Cada linha da saída do \sig{tb\_cpu} também foi conferida com o
+resultado esperado de cada instrução segundo a Tabela~\ref{tab:isa},
+incluindo registradores, flags, $SP$ e PC.
+
+\begin{table}[H]
+\centering
+\caption{Resultado da simulação dos programas.}
+\label{tab:resumo}
+\small
+\input{tabelas/resumo_testes}
+\end{table}
+
+\paragraph{Robustez da temporização.} Os mesmos programas foram simulados com o
+divisor configurado para 1, 2 e 5 ciclos por estado. Com 1 ciclo, \sig{CE} fica
+sempre em 1 e cada estado dura um único período de clock --- o caso mais
+apertado para a RAM síncrona. Os resultados foram idênticos nos três casos, o
+que confirma que a regra ``endereço num estado, dado no seguinte''
+(Seção~\ref{sec:ram}) não depende da velocidade do divisor.
+
+\paragraph{Os testes detectam erros?} Para confirmar que os testes
+autoverificáveis realmente detectam defeitos, foi introduzido um erro
+proposital na UC: o salto \instr{bgt} passou a testar a flag SMALLER em vez de
+GREATER. Com esse defeito, o \sig{test\_alu} desviou para \sig{fail} já no
+teste T1, terminando com $MEM[255] = 238$ após 16 instruções. Depois de
+desfeita a alteração, voltou a terminar com 100.
+
+\subsection{Testbench do topo (\sig{tb\_top})}
+
+O \sig{tb\_top} simula o sistema completo (\sig{cpu\_top}), incluindo o
+controlador do LCD. Um modelo comportamental do controlador HD44780 captura os
+nibbles na borda de descida de \sig{LCD\_E}, reconstrói os bytes, interpreta os
+comandos de posicionamento e limpeza e mantém a memória do display ($2 \times
+16$). A cada \SI{5}{\milli\second}, o testbench imprime o último quadro completo
+recebido pelo display e o estado dos LEDs.
+
+Para que o programa avance numa escala de tempo simulável, o divisor foi
+configurado com \num{10000} ciclos por estado (\SI{0,2}{\milli\second}), de modo
+que cada instrução dura \SI{0,8}{\milli\second}; o reset é liberado em
+\SI{1}{\milli\second}. A Tabela~\ref{tab:tbtop} mostra a saída.
+
+\begin{table}[H]
+\centering
+\caption{Saída do \texttt{tb\_top} com o Fibonacci: conteúdo do LCD e LEDs ao longo do tempo.}
+\label{tab:tbtop}
+\small
+\begin{tabular}{r l l c}
+\toprule
+$t$ (ms) & LCD linha 1 & LCD linha 2 & LD7..LD0 \\
+\midrule
+6--21 & \textit{(em branco)} & \textit{(em branco)} & --- \\
+26 & \texttt{LDI Rd, 0x10} & \texttt{MEM[255] = 003} & \texttt{00000100} \\
+31 & \texttt{ADD Rb, Ra}   & \texttt{MEM[255] = 005} & \texttt{00000100} \\
+41 & \texttt{MOV Rc, Rb}   & \texttt{MEM[255] = 013} & \texttt{00000100} \\
+51 & \texttt{JMP 0x06}     & \texttt{MEM[255] = 021} & \texttt{00000100} \\
+61 & \texttt{JMP 0x06}     & \texttt{MEM[255] = 055} & \texttt{00000100} \\
+66 & \texttt{BCS Rd}       & \texttt{MEM[255] = 089} & \texttt{00100100} \\
+76 & \texttt{MOV Ra, Rc}   & \texttt{MEM[255] = 233} & \texttt{00010100} \\
+81--91 & \texttt{HALT}     & \texttt{MEM[255] = 233} & \texttt{00010100} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Observa-se que:
+\begin{itemize}[nosep]
+  \item o display fica em branco nos primeiros $\approx$\SI{20}{\milli\second},
+        que correspondem à espera de inicialização, à sequência de
+        configuração e ao primeiro quadro;
+  \item a partir daí, as duas linhas acompanham a execução, com textos
+        completos e corretos;
+  \item os LEDs refletem as flags da última soma \instr{add Rb, Ra}: GREATER
+        (LD2) fica acesa porque $Rb = F(n)$ é maior que $Ra = F(n-1)$;
+        NEGATIVE (LD5) acende quando a soma resulta 144 (bit 7 = 1); e, no
+        fim, OVERFLOW (LD4) e GREATER ficam acesas pela soma $233 + 144$, que
+        estoura 8 bits. O LD7 (CLOCK) aparece sempre apagado na tabela apenas
+        porque as amostras, a cada \SI{5}{\milli\second}, caem sempre na mesma
+        fase do divisor;
+  \item \sig{SF\_CE0} permanece em 1 e \sig{LCD\_RW} em 0, conferidos por
+        \sig{assert} ao final.
+\end{itemize}
