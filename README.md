@@ -18,18 +18,3 @@
 | `tools/asm.py` | montador: gera o bloco da RAM (ou já substitui no `RAM.vhd`) |
 | `tools/sim.py` | simulador da ISA: gera a tabela da apresentação |
 | `programs/*.asm` | `fibonacci`, `test_alu` e `test_mem` (autoteste: 100 = ok, 238 = falha) |
-
-## ISE
-1. Novo projeto (XC3S500E, FG320, -4), adicione todos os `src/*.vhd` e o `.ucf`; top = `cpu_top`.
-2. Para simular no ISim, adicione `sim/tb_cpu.vhd` (ou `tb_top.vhd`) como Simulation.
-
-## Trocar o programa (ex.: programa surpresa)
-    python tools/asm.py programa.asm --ram src/RAM.vhd
-ou cole o bloco do professor no lugar de `signal ram : RAM_t := (...);`.
-
-## Tabela passo a passo
-    python tools/sim.py programs/fibonacci.asm          # texto
-    python tools/sim.py programs/fibonacci.asm --csv fib.csv
-
-## LEDs
-LD7 CLOCK · LD6 ZERO · LD5 NEGATIVE · LD4 OVERFLOW · LD3 EQUAL · LD2 GREATER · LD1 SMALLER · LD0 livre
