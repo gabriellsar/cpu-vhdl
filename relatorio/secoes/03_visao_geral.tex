@@ -75,11 +75,3 @@ estado nas bordas de subida em que \sig{CE}~=~1. Assim:
   \item não há clocks derivados de lógica, o que evita problemas de
         \emph{skew} e de roteamento de clock na FPGA.
 \end{itemize}
-
-\subsection{Reset}
-
-O reset vem da chave deslizante SW0 (e não de um botão), passando por dois
-flip-flops de sincronização antes de chegar à CPU e ao divisor. Com a chave em
-1, a CPU permanece no estado inicial: $PC = 0$, $SP = 254$, flags em zero,
-registradores zerados e a UC no estado de \emph{fetch}. Ao levar a chave para 0,
-o programa começa a ser executado a partir do endereço 0.

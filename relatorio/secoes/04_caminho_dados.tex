@@ -108,60 +108,15 @@ projeto organizam o desenho:
   % write-back MBR -> registradores
   \draw[bus] (mbr.south) -- (10.2,0.9) -- (11.3,0.9) -- (11.3,-2.9) -- (0.8,-2.9) node[lbl, pos=0.5, above] {MBR $\to$ Rx (estado WRITE)} -- (rf.south);
 \end{tikzpicture}
-\caption{Caminho de dados da CPU (os sinais de controle gerados pela UC foram
-omitidos para clareza; os multiplexadores são selecionados pela instrução
-decodificada e pelo estado).}
+\caption[Caminho de dados da CPU]{Caminho de dados da CPU\protect\footnotemark}
 \label{fig:datapath}
 \end{figure}
+\footnotetext{Os sinais de controle gerados pela UC foram omitidos para
+clareza; os multiplexadores são selecionados pela instrução decodificada e pelo
+estado.}
 
-\subsection{Transferências entre registradores}
-
-A Tabela~\ref{tab:transf} lista, para cada registrador, todas as fontes
-possíveis --- ou seja, as entradas dos multiplexadores da
-Figura~\ref{fig:datapath} --- e em que estado da UC cada transferência ocorre.
-
-\begin{table}[H]
-\centering
-\caption{Fontes de cada registrador e estado em que são carregadas.}
-\label{tab:transf}
-\small
-\begin{tabularx}{\linewidth}{l l l X}
-\toprule
-Destino & Fonte & Estado & Quando \\
-\midrule
-\sig{IR}   & \sig{DOUT}           & FETCH   & toda instrução \\
-\midrule
-\multirow{6}{*}{\sig{MAR}}
-           & \sig{PC+1}           & FETCH   & toda instrução (busca do 2º byte) \\
-           & \sig{DOUT}           & DECODE  & \instr{st} (endereço vem do 2º byte) \\
-           & \sig{REG(ry)}        & DECODE  & \instr{ldr}, \instr{str} \\
-           & \sig{SP}             & DECODE  & \instr{push} \\
-           & \sig{SP+1}           & DECODE  & \instr{pop} \\
-           & próximo \sig{PC}     & WRITE   & toda instrução (prepara o FETCH) \\
-\midrule
-\multirow{5}{*}{\sig{MBR}}
-           & \sig{DOUT}           & DECODE  & \instr{ldi}, \instr{jmp} (2º byte) \\
-           & \sig{REG(rx)}        & DECODE  & \instr{st}, \instr{str}, \instr{push} (dado a escrever) \\
-           & \sig{ALU\_R}         & EXECUTE & instruções de ALU \\
-           & \sig{DOUT}           & EXECUTE & \instr{ldr}, \instr{pop} (dado lido) \\
-           & \sig{REG(ry)}        & EXECUTE & \instr{mov} \\
-\midrule
-\sig{ALU\_A}, \sig{ALU\_B}, \sig{CMD} & \sig{REG(rx)}, \sig{REG(ry)}/1/0 & DECODE & instruções de ALU (zero nas demais) \\
-\sig{FLAGS} & flags da ALU         & EXECUTE & instruções de ALU \\
-\sig{REG(rx)} & \sig{MBR}          & WRITE   & ALU, \instr{ldi}, \instr{ldr}, \instr{pop}, \instr{mov} \\
-\midrule
-\multirow{5}{*}{\sig{PC}}
-           & \sig{PC+1}           & WRITE   & instruções de 1 byte, saltos não tomados \\
-           & \sig{PC+2}           & WRITE   & \instr{ldi}, \instr{st} \\
-           & \sig{MBR}            & WRITE   & \instr{jmp} \\
-           & \sig{REG(rx)}        & WRITE   & \instr{jmpr}, saltos condicionais tomados \\
-           & \sig{PC}             & WRITE   & \instr{halt} \\
-\midrule
-\sig{SP}   & \sig{SP-1} / \sig{SP+1} & WRITE & \instr{push} / \instr{pop} \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
+O que cada registrador recebe em cada estado, para cada instrução, está
+detalhado na Tabela~\ref{tab:microops}, na seção da máquina de estados.
 Os únicos somadores fora da ALU são os incrementos de \sig{PC} (\sig{PC+1},
 \sig{PC+2}) e de \sig{SP} (\sig{SP+1}, \sig{SP-1}), exatamente as exceções
 permitidas pelo enunciado. Todas as operações das instruções --- inclusive

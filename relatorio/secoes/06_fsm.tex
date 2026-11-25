@@ -3,8 +3,10 @@
 
 A UC é uma máquina de Moore com quatro estados, percorridos sempre na mesma
 ordem por todas as instruções (Figura~\ref{fig:fsm}). O estado só muda nas
-bordas de subida em que \sig{CE}~=~1, e o reset leva a máquina a FETCH de
-qualquer estado.
+bordas de subida em que \sig{CE}~=~1. O reset vem da chave SW0 (sincronizada por
+dois flip-flops) e, de qualquer estado, leva a máquina a FETCH com $PC = 0$,
+$SP = 254$, flags e registradores zerados; ao levar a chave para 0, o programa
+começa a ser executado a partir do endereço 0.
 
 \begin{figure}[H]
 \centering
